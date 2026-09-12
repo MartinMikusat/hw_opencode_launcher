@@ -211,25 +211,25 @@ struct OpencodeClient: Sendable {
         struct Envelope: Decodable { let type: String }
         guard let type = try? decoder.decode(Envelope.self, from: data).type else { return nil }
         struct Box<P: Decodable>: Decodable { let properties: P }
-        func props<P: Decodable>(as _: P.Type) -> P? {
-            do { return try decoder.decode(Box<P>.self, from: data).properties } catch { return nil }
+        func props<P: Decodable>(as _: P.Type) throws -> P {
+            try decoder.decode(Box<P>.self, from: data).properties
         }
         switch type {
         case "message.updated":
             struct P: Decodable { let info: OCMessage }
-            return props(as: P.self).map { .messageUpdated($0.info) }
+            return (try? props(as: P.self)).map { .messageUpdated($0.info) }
         case "message.part.updated":
             struct P: Decodable { let part: Part }
-            return props(as: P.self).map { .partUpdated($0.part) }
+            return (try? props(as: P.self)).map { .partUpdated($0.part) }
         case "session.status":
             struct P: Decodable { let sessionID: String; let status: S }
             struct S: Decodable { let type: String }
-            return props(as: P.self).map { .sessionStatus(sessionID: $0.sessionID, status: $0.status.type) }
+            return (try? props(as: P.self)).map { .sessionStatus(sessionID: $0.sessionID, status: $0.status.type) }
         case "session.idle":
             struct P: Decodable { let sessionID: String }
-            return props(as: P.self).map { .sessionIdle(sessionID: $0.sessionID) }
+            return (try? props(as: P.self)).map { .sessionIdle(sessionID: $0.sessionID) }
         case "permission.updated":
-            return props(as: Permission.self).map { .permissionAsked($0) }
+            return (try? props(as: Permission.self)).map { .permissionAsked($0) }
         default:
             return .other(type)
         }

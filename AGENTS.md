@@ -23,34 +23,32 @@ rebindable in menu → Keyboard Shortcut…).
 
 ```
 ⌥` hotkey ─▶ PanelController (borderless floating NSPanel)
-                │
+                │  first show → ChatModel.start()
                 ▼
-     ChatView (SwiftUI)
-       dir-picker state → chat state (text-only transcript)
+     ChatView (SwiftUI) — text-only transcript, message input
                 │
                 ▼
      OpencodeClient — URLSession REST + SSE /event stream
                 │
                 ▼
-     ServerManager.ensureServer(dir) ─▶ `opencode serve` on port
+     ServerManager.ensureServer(~) ─▶ `opencode serve` on port
      4100+hash(dir) (detached — survives app quit, sessions persist)
-                │
-                ▼
-     Registry (~/Library/Application Support/OpenPad/servers.json)
-     dir → {port, lastUsedAt, lastTask} — feeds picker + sessions
 ```
+
+Working directory is fixed to `~` — no directory picker; the agent
+relocates itself per task (cd/read whatever rules it needs).
 
 - `Sources/OpenPad/OpencodeClient.swift` — REST + SSE. `Part`/`ServerEvent`
   are hand-decoded Codable unions keyed on `type`. Events nest under
   `properties`.
-- `Sources/OpenPad/ChatModel.swift` — @MainActor state machine:
-  directory==nil → picker; send → lazy session create → `promptAsync` →
-  SSE updates. Permission requests → NSAlert (once/always/reject). Busy→idle
-  while panel hidden → `onIdleWhileHidden` → UNUserNotificationCenter.
-- `Sources/OpenPad/ChatView.swift` — one TextField does double duty: filter/
-  resolve directories in picker mode, prompt input in chat mode.
-- `Sources/OpenPad/DirectoryResolver.swift` — "say where to work": recents →
-  `~/projects` + iCloud Drive root scan → `mdfind` fallback.
+- `Sources/OpenPad/ChatModel.swift` — @MainActor state machine: start →
+  connect to home-dir server; send → lazy session create → `promptAsync` →
+  SSE updates. Optimistic user bubbles are matched against the server's
+  message echo (`pendingLocalIDs`/`hiddenMessageIDs`). Permission requests →
+  NSAlert (once/always/reject). Busy→idle while panel hidden →
+  `onIdleWhileHidden` → UNUserNotificationCenter.
+- `Sources/OpenPad/ChatView.swift` — header (dir, model picker, agent
+  picker), transcript, input bar. Esc = abort while busy, hide when idle.
 - `Sources/OpenPad/ServerManager.swift` — port probe via `GET /path` (doubles
   as health check; no `/health` in this API version), detached `Process`
   spawn, binary resolution (`~/.opencode/bin`, homebrew, login-shell PATH).
@@ -77,8 +75,9 @@ rebindable in menu → Keyboard Shortcut…).
 
 ## Roadmap / gaps
 
-- Sessions view aggregating all registered servers (registry exists; UI not
-  written — notification deep links currently just show the panel).
+- Sessions view for resuming past sessions (a persisted server registry was
+  removed with the directory picker — re-add alongside this UI; notification
+  deep links currently just show the panel).
 - `session.command` for slash commands; `@agent` inline syntax.
 - Ghostty handoff is wired (`⌘O`) but the `-e` invocation path needs a live
   test on a real desktop session.

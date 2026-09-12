@@ -87,8 +87,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         let content = UNMutableNotificationContent()
         content.title = "OpenPad"
         content.body = preview
-        if let dir = model.directory, let sid = model.sessionID {
-            content.userInfo = ["directory": dir, "sessionID": sid]
+        if let sid = model.sessionID {
+            content.userInfo = ["directory": model.directory, "sessionID": sid]
         }
         let req = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
         UNUserNotificationCenter.current().add(req)

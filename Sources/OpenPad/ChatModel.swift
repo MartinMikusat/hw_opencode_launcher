@@ -14,7 +14,8 @@ final class ChatModel: ObservableObject {
         var text: String { order.compactMap { texts[$0] }.joined(separator: "\n") }
     }
 
-    @Published var directory: String?
+    /// Fixed working directory: home. The agent relocates itself as needed.
+    let directory = NSHomeDirectory()
     @Published var messages: [Msg] = []
     @Published var busy = false
     @Published var statusLine = ""
@@ -33,38 +34,30 @@ final class ChatModel: ObservableObject {
     var onIdleWhileHidden: ((String) -> Void)?
 
     private var client: OpencodeClient?
-    private var port = 0
     private var queuedText: String?
     private var eventTask: Task<Void, Never>?
-    private var lastEventDirectory: String?
     /// Optimistic user messages we inserted locally; the server echoes the real
     /// message back over SSE — we hide that echo instead of rendering twice.
     private var pendingLocalIDs = Set<String>()
     private var hiddenMessageIDs = Set<String>()
 
-    // MARK: directory + server
+    // MARK: server
 
-    func choose(directory: String) {
-        let dir = (directory as NSString).expandingTildeInPath
-        self.directory = dir
-        sessionID = nil
-        messages = []
-        pendingLocalIDs = []
-        hiddenMessageIDs = []
+    /// Connect to the home-directory opencode server. Idempotent — called when
+    /// the panel is shown, so no server is spawned before the app is used.
+    func start() {
+        guard client == nil, !connecting else { return }
         statusLine = ""
         connecting = true
-        eventTask?.cancel()
         eventTask = Task { [weak self] in
             do {
-                let (client, port) = try await ServerManager.ensureServer(directory: dir)
+                let (client, port) = try await ServerManager.ensureServer(directory: NSHomeDirectory())
                 guard let self, !Task.isCancelled else { return }
                 self.client = client
-                self.port = port
                 self.serverURL = "http://127.0.0.1:\(port)"
                 self.connecting = false
-                Registry.shared.record(directory: dir, port: port)
                 await self.loadPickers()
-                self.streamEvents(client: client, for: dir)
+                self.streamEvents(client: client)
                 if let queued = self.queuedText {
                     self.queuedText = nil
                     self.send(queued)
@@ -72,7 +65,6 @@ final class ChatModel: ObservableObject {
             } catch {
                 guard let self else { return }
                 self.connecting = false
-                self.directory = nil
                 self.statusLine = error.localizedDescription
             }
         }
@@ -99,8 +91,7 @@ final class ChatModel: ObservableObject {
 
     // MARK: events
 
-    private func streamEvents(client: OpencodeClient, for dir: String) {
-        lastEventDirectory = dir
+    private func streamEvents(client: OpencodeClient) {
         Task { [weak self] in
             do {
                 for try await event in client.eventStream() {
@@ -196,18 +187,16 @@ final class ChatModel: ObservableObject {
 
     func send(_ text: String) {
         let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, directory != nil else { return }
+        guard !text.isEmpty else { return }
         guard let client else {
             queuedText = text // still connecting — send once the server is up
             return
         }
-        let dir = directory!
         Task {
             do {
                 if sessionID == nil {
                     let s = try await client.createSession(title: String(text.prefix(60)))
                     sessionID = s.id
-                    Registry.shared.record(directory: dir, port: port, task: s.title)
                 }
                 guard let sid = sessionID else { return }
                 let userID = "local_\(UUID().uuidString)"
@@ -242,11 +231,11 @@ final class ChatModel: ObservableObject {
     }
 
     func openInGhostty() {
-        guard !serverURL.isEmpty, let dir = directory else { return }
+        guard !serverURL.isEmpty else { return }
         guard let bin = ServerManager.findBinary() else { return }
         Process.launchedProcess(launchPath: "/usr/bin/open", arguments: [
             "-na", "Ghostty", "--args", "-e", "/bin/zsh", "-lc",
-            "cd \(dir.shellEscaped) && \(bin.shellEscaped) attach \(serverURL)",
+            "cd \(directory.shellEscaped) && \(bin.shellEscaped) attach \(serverURL)",
         ])
     }
 }

@@ -6,8 +6,10 @@ import SwiftUI
 @MainActor
 final class PanelController {
     private var panel: NSPanel?
+    private let model: ChatModel
 
     init(model: ChatModel) {
+        self.model = model
         let view = NSHostingView(rootView: ChatView(model: model))
         let panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 680, height: 440),
@@ -57,6 +59,7 @@ final class PanelController {
 
     func show() {
         guard let panel else { return }
+        model.start() // connect to the home-dir server on first summon
         if let screen = NSScreen.main {
             let f = screen.visibleFrame
             let w = panel.frame.width

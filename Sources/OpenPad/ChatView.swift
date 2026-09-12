@@ -15,17 +15,10 @@ private enum Ink {
 struct ChatView: View {
     @ObservedObject var model: ChatModel
     @State private var query = ""
-    @State private var hoveredDir: String?
     @FocusState private var inputFocused: Bool
 
     var body: some View {
-        VStack(spacing: 0) {
-            if model.directory == nil {
-                pickerBody
-            } else {
-                chatBody
-            }
-        }
+        chatBody
         .background(Ink.bg)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
@@ -37,137 +30,6 @@ struct ChatView: View {
             // Esc stops the agent first; a second Esc (once idle) hides the panel.
             if model.busy { model.abort() } else { model.onEscape?() }
         }
-        .onChange(of: model.directory) { query = "" }
-    }
-
-    // MARK: directory picker
-
-    private var pickerBody: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(Ink.tertiary)
-                TextField("Where should it work?", text: $query)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 17, weight: .medium))
-                    .foregroundStyle(Ink.text)
-                    .focused($inputFocused)
-                    .onSubmit { resolveQuery() }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            hairline
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 2) {
-                    let recents = filteredRecents
-                    if !recents.isEmpty {
-                        sectionHeader("Recent")
-                        ForEach(recents, id: \.directory) { entry in
-                            dirRow(
-                                path: entry.directory,
-                                detail: entry.lastTask.isEmpty ? nil : entry.lastTask
-                            )
-                        }
-                    }
-                    let folders = DirectoryResolver.candidates(matching: query)
-                    if !folders.isEmpty {
-                        sectionHeader("Folders")
-                        ForEach(folders.prefix(8), id: \.self) { path in
-                            dirRow(path: path, detail: nil)
-                        }
-                    }
-                    if recents.isEmpty && folders.isEmpty {
-                        Text("No matching folders — press ⏎ to try Spotlight, or ⌘B to browse")
-                            .font(.callout)
-                            .foregroundStyle(Ink.tertiary)
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .padding(.vertical, 40)
-                    }
-                }
-                .padding(.horizontal, 8)
-                .padding(.bottom, 8)
-            }
-            hairline
-            HStack {
-                if !model.statusLine.isEmpty {
-                    Text(model.statusLine).foregroundStyle(Ink.error).font(.callout)
-                }
-                Spacer()
-                ghostButton("Browse…", systemImage: "folder") { browse() }
-                    .keyboardShortcut("b", modifiers: .command)
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-        }
-    }
-
-    private var filteredRecents: [ServerEntry] {
-        let recents = Registry.shared.recents
-        guard !query.isEmpty else { return recents }
-        return recents.filter {
-            $0.directory.localizedCaseInsensitiveContains(query)
-                || $0.lastTask.localizedCaseInsensitiveContains(query)
-        }
-    }
-
-    private func sectionHeader(_ title: String) -> some View {
-        Text(title.uppercased())
-            .font(.system(size: 10, weight: .semibold))
-            .tracking(1.2)
-            .foregroundStyle(Ink.tertiary)
-            .padding(.horizontal, 8)
-            .padding(.top, 14)
-            .padding(.bottom, 4)
-    }
-
-    private func dirRow(path: String, detail: String?) -> some View {
-        let hovered = hoveredDir == path
-        return Button { model.choose(directory: path) } label: {
-            HStack(spacing: 10) {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(path.lastPathComponent)
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(Ink.text)
-                    Text(detail ?? path.replacingOccurrences(of: NSHomeDirectory(), with: "~"))
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(Ink.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.head)
-                }
-                Spacer()
-                Image(systemName: "arrow.right")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(Ink.tertiary)
-                    .opacity(hovered ? 1 : 0)
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
-            .background(hovered ? Ink.fill : .clear)
-            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .onHover { hoveredDir = $0 ? path : nil }
-    }
-
-    private func resolveQuery() {
-        if let dir = DirectoryResolver.resolve(query, recents: Registry.shared.recents) {
-            model.choose(directory: dir)
-        } else if FileManager.default.fileExists(atPath: query.expandingTildeInPath) {
-            model.choose(directory: query.expandingTildeInPath)
-        } else {
-            model.statusLine = "No folder found for “\(query)” — use ⌘B to browse"
-        }
-    }
-
-    private func browse() {
-        let panel = NSOpenPanel()
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-        panel.allowsMultipleSelection = false
-        if panel.runModal() == .OK, let url = panel.url {
-            model.choose(directory: url.path)
-        }
     }
 
     // MARK: chat
@@ -175,14 +37,9 @@ struct ChatView: View {
     private var chatBody: some View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
-                Text(model.directory?.lastPathComponent ?? "")
+                Text("~")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Ink.text)
-                Text(model.directory?.replacingOccurrences(of: NSHomeDirectory(), with: "~") ?? "")
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(Ink.tertiary)
-                    .lineLimit(1)
-                    .truncationMode(.head)
+                    .foregroundStyle(Ink.secondary)
                 Spacer()
                 if !model.modelChoices.isEmpty {
                     Menu {
@@ -311,19 +168,6 @@ struct ChatView: View {
         }
         .buttonStyle(.plain)
         .help(help)
-    }
-
-    private func ghostButton(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(Ink.secondary)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(Ink.fill)
-                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-        }
-        .buttonStyle(.plain)
     }
 
     private func messageRow(_ msg: ChatModel.Msg) -> some View {

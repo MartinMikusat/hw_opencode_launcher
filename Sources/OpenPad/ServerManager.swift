@@ -1,56 +1,5 @@
 import Foundation
 
-struct ServerEntry: Codable {
-    var directory: String
-    var port: Int
-    var lastUsedAt: Date
-    var lastTask: String
-}
-
-/// Persisted map of known opencode servers: directory → port/url/last task.
-/// Shared by the dir picker, the sessions view, and notifications.
-@MainActor
-final class Registry {
-    static let shared = Registry()
-
-    private var entries: [String: ServerEntry] = [:]
-    private let file: URL = {
-        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appending(path: "OpenPad", directoryHint: .isDirectory)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appending(path: "servers.json")
-    }()
-
-    private init() {
-        if let data = try? Data(contentsOf: file),
-           let decoded = try? JSONDecoder().decode([String: ServerEntry].self, from: data) {
-            entries = decoded
-        }
-    }
-
-    var recents: [ServerEntry] {
-        entries.values.sorted { $0.lastUsedAt > $1.lastUsedAt }
-    }
-
-    func record(directory: String, port: Int, task: String? = nil) {
-        var e = entries[directory] ?? ServerEntry(directory: directory, port: port, lastUsedAt: .now, lastTask: "")
-        e.port = port
-        e.lastUsedAt = .now
-        if let task { e.lastTask = task }
-        entries[directory] = e
-        if let data = try? JSONEncoder().encode(entries) {
-            try? data.write(to: file, options: .atomic)
-        }
-    }
-
-    func prune(directory: String) {
-        entries.removeValue(forKey: directory)
-        if let data = try? JSONEncoder().encode(entries) {
-            try? data.write(to: file, options: .atomic)
-        }
-    }
-}
-
 enum ServerManager {
     /// Find the opencode binary: well-known installs first, login shell PATH as fallback.
     static func findBinary() -> String? {
