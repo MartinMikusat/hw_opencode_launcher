@@ -33,7 +33,10 @@ struct ChatView: View {
                 .strokeBorder(Ink.hairline, lineWidth: 0.5)
         )
         .preferredColorScheme(.dark)
-        .onExitCommand { model.onEscape?() }
+        .onExitCommand {
+            // Esc stops the agent first; a second Esc (once idle) hides the panel.
+            if model.busy { model.abort() } else { model.onEscape?() }
+        }
         .onChange(of: model.directory) { query = "" }
     }
 
