@@ -39,9 +39,9 @@ struct ChatView: View {
     var body: some View {
         chatBody
         .background(Ink.bg)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .clipShape(Rectangle())
         .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            Rectangle()
                 .strokeBorder(Ink.hairline, lineWidth: 0.5)
         )
         .preferredColorScheme(.dark)
@@ -259,9 +259,9 @@ struct ChatView: View {
         }
         .frame(width: 260)
         .background(Ink.bg)
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .clipShape(Rectangle())
         .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
+            Rectangle()
                 .strokeBorder(Ink.hairline, lineWidth: 0.5)
         )
         .preferredColorScheme(.dark)
