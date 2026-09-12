@@ -54,19 +54,29 @@ const reader = (async () => {
 
 await client.session.promptAsync({
   path: { id: sessionID },
-  body: { parts: [{ type: "text", text: "Reply with exactly: OK" }] },
+  body: {
+    parts: [
+      {
+        type: "text",
+        text: "Use your bash tool to run exactly: echo raycast-ok — then reply DONE",
+      },
+    ],
+  },
 });
-await Promise.race([reader, new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 90_000))]);
+await Promise.race([reader, new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 120_000))]);
 
 const msgs = await client.session.messages({ path: { id: sessionID } });
-const reply = msgs.data
-  .flatMap((m) => m.parts)
+const parts = msgs.data.flatMap((m) => m.parts);
+const reply = parts
   .filter((p) => p.type === "text")
   .map((p) => p.text)
   .join(" ");
+const toolParts = parts.filter((p) => p.type === "tool");
 
 console.log("events seen:", [...seen].sort().join(", "));
+console.log("tool parts:", toolParts.map((p) => `${p.tool}:${p.state.status}`).join(", ") || "none");
 console.log("reply:", reply.slice(0, 200));
 if (!seen.has("message.part.updated")) throw new Error("no streaming events received");
+if (toolParts.length === 0) throw new Error("no tool calls — agentic loop not exercised");
 if (!reply) throw new Error("empty reply");
 console.log("PASS");
