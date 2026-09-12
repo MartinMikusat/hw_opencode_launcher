@@ -178,6 +178,9 @@ struct OpencodeClient: Sendable {
     struct Agent: Decodable { let name: String; let hidden: Bool? }
     func agents() async throws -> [Agent] { try await get("/agent", as: [Agent].self) }
 
+    struct Config: Decodable { let model: String? }
+    func config() async throws -> Config { try await get("/config", as: Config.self) }
+
     // MARK: SSE
 
     func eventStream() -> AsyncThrowingStream<ServerEvent, Error> {
@@ -209,7 +212,7 @@ struct OpencodeClient: Sendable {
         guard let type = try? decoder.decode(Envelope.self, from: data).type else { return nil }
         struct Box<P: Decodable>: Decodable { let properties: P }
         func props<P: Decodable>(as _: P.Type) -> P? {
-            try? decoder.decode(Box<P>.self, from: data).properties
+            do { return try decoder.decode(Box<P>.self, from: data).properties } catch { return nil }
         }
         switch type {
         case "message.updated":

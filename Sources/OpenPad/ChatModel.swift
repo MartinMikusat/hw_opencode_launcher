@@ -21,8 +21,10 @@ final class ChatModel: ObservableObject {
     @Published var sessionID: String?
     @Published var modelChoices: [(label: String, providerID: String, modelID: String)] = []
     @Published var selectedModelLabel: String?
+    @Published var defaultModelName = ""
     @Published var agents: [String] = []
     @Published var selectedAgent: String?
+    @Published var connecting = false
 
     var serverURL = ""
     var panelVisible = true
@@ -32,8 +34,13 @@ final class ChatModel: ObservableObject {
 
     private var client: OpencodeClient?
     private var port = 0
+    private var queuedText: String?
     private var eventTask: Task<Void, Never>?
     private var lastEventDirectory: String?
+    /// Optimistic user messages we inserted locally; the server echoes the real
+    /// message back over SSE — we hide that echo instead of rendering twice.
+    private var pendingLocalIDs = Set<String>()
+    private var hiddenMessageIDs = Set<String>()
 
     // MARK: directory + server
 
@@ -42,7 +49,10 @@ final class ChatModel: ObservableObject {
         self.directory = dir
         sessionID = nil
         messages = []
-        statusLine = "connecting…"
+        pendingLocalIDs = []
+        hiddenMessageIDs = []
+        statusLine = ""
+        connecting = true
         eventTask?.cancel()
         eventTask = Task { [weak self] in
             do {
@@ -51,12 +61,17 @@ final class ChatModel: ObservableObject {
                 self.client = client
                 self.port = port
                 self.serverURL = "http://127.0.0.1:\(port)"
-                self.statusLine = ""
+                self.connecting = false
                 Registry.shared.record(directory: dir, port: port)
                 await self.loadPickers()
                 self.streamEvents(client: client, for: dir)
+                if let queued = self.queuedText {
+                    self.queuedText = nil
+                    self.send(queued)
+                }
             } catch {
                 guard let self else { return }
+                self.connecting = false
                 self.directory = nil
                 self.statusLine = error.localizedDescription
             }
@@ -65,6 +80,9 @@ final class ChatModel: ObservableObject {
 
     private func loadPickers() async {
         guard let client else { return }
+        if let config = try? await client.config(), let model = config.model {
+            defaultModelName = String(model.split(separator: "/").last ?? "")
+        }
         if let res = try? await client.providers() {
             var choices: [(label: String, providerID: String, modelID: String)] = []
             for p in res.providers {
@@ -73,11 +91,6 @@ final class ChatModel: ObservableObject {
                 }
             }
             modelChoices = choices
-            if selectedModelLabel == nil {
-                selectedModelLabel = choices.first(where: {
-                    res.default[$0.providerID] == $0.modelID
-                })?.label ?? choices.first?.label
-            }
         }
         if let list = try? await client.agents() {
             agents = list.filter { $0.hidden != true }.map(\.name)
@@ -106,9 +119,21 @@ final class ChatModel: ObservableObject {
         switch event {
         case let .messageUpdated(info):
             guard info.sessionID == sessionID else { return }
+            if info.role == "user" {
+                // message.updated fires repeatedly — skip all updates for an
+                // echo we already hid, and match it only once against a pending
+                // optimistic local message.
+                if hiddenMessageIDs.contains(info.id) { return }
+                if !pendingLocalIDs.isEmpty {
+                    pendingLocalIDs.removeFirst()
+                    hiddenMessageIDs.insert(info.id)
+                    messages.removeAll { $0.id == info.id }
+                    return
+                }
+            }
             upsert(id: info.id) { $0.role = info.role }
         case let .partUpdated(part):
-            guard sessionID != nil else { return }
+            guard sessionID != nil, !hiddenMessageIDs.contains(part.messageID) else { return }
             upsert(id: part.messageID) { msg in
                 switch part {
                 case let .text(id, _, text):
@@ -171,7 +196,12 @@ final class ChatModel: ObservableObject {
 
     func send(_ text: String) {
         let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, let client, let dir = directory else { return }
+        guard !text.isEmpty, directory != nil else { return }
+        guard let client else {
+            queuedText = text // still connecting — send once the server is up
+            return
+        }
+        let dir = directory!
         Task {
             do {
                 if sessionID == nil {
@@ -181,6 +211,7 @@ final class ChatModel: ObservableObject {
                 }
                 guard let sid = sessionID else { return }
                 let userID = "local_\(UUID().uuidString)"
+                pendingLocalIDs.insert(userID)
                 upsert(id: userID) { m in
                     m.role = "user"
                     m.order = ["t"]
@@ -206,6 +237,8 @@ final class ChatModel: ObservableObject {
     func newChat() {
         sessionID = nil
         messages = []
+        pendingLocalIDs = []
+        hiddenMessageIDs = []
     }
 
     func openInGhostty() {

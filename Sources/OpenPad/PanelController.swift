@@ -3,6 +3,7 @@ import SwiftUI
 
 /// Spotlight-style floating panel: borderless, centered top-third, closes on
 /// outside click / Esc via the view.
+@MainActor
 final class PanelController {
     private var panel: NSPanel?
 
@@ -23,6 +24,13 @@ final class PanelController {
         panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
         panel.standardWindowButton(.zoomButton)?.isHidden = true
         panel.isMovableByWindowBackground = true
+        panel.isOpaque = false
+        panel.backgroundColor = .clear
+        panel.hasShadow = true
+        panel.appearance = NSAppearance(named: .darkAqua)
+        view.wantsLayer = true
+        view.layer?.cornerRadius = 14
+        view.layer?.masksToBounds = true
         panel.hidesOnDeactivate = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         self.panel = panel
@@ -31,7 +39,9 @@ final class PanelController {
             NotificationCenter.default.addObserver(
                 forName: name, object: panel, queue: .main
             ) { [weak model, weak panel] _ in
-                model?.panelVisible = panel?.isKeyWindow ?? false
+                MainActor.assumeIsolated {
+                    model?.panelVisible = panel?.isKeyWindow ?? false
+                }
             }
         }
     }
