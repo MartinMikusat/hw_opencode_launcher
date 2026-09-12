@@ -18,6 +18,10 @@
 	<string>14.0</string>
 	<key>LSUIElement</key>
 	<true/>
+	<key>SUFeedURL</key>
+	<string>https://raw.githubusercontent.com/MartinMikusat/hw_opencode_launcher/main/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>6jvIUMs2HvX8q/bqrM2Z32ZKzxN8Ror8tCnp/3aYfnI=</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

@@ -1,5 +1,6 @@
 import AppKit
 import KeyboardShortcuts
+import Sparkle
 import SwiftUI
 import UserNotifications
 
@@ -24,6 +25,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     private var panel: PanelController!
     private var settingsWindow: NSWindow?
     private let model = ChatModel()
+    private let updaterController = SPUStandardUpdaterController(
+        startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
 
     func applicationDidFinishLaunching(_: Notification) {
         UNUserNotificationCenter.current().delegate = self
@@ -50,6 +53,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: "Toggle Panel", action: #selector(toggle), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Keyboard Shortcut…", action: #selector(openSettings), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Check for Updates…", action: #selector(checkUpdates), keyEquivalent: ""))
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit OpenPad", action: #selector(quit), keyEquivalent: "q"))
         statusItem.menu = menu
@@ -63,6 +67,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
     @objc private func toggle() { panel.toggle() }
     @objc private func quit() { NSApp.terminate(nil) }
+    @objc private func checkUpdates() { updaterController.checkForUpdates(nil) }
 
     @objc private func openSettings() {
         if settingsWindow == nil {
