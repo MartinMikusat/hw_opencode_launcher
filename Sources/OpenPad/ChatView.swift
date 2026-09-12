@@ -168,12 +168,24 @@ struct ChatView: View {
         }
     }
 
+    /// match-sorter tiers: prefix (3) > word boundary (2) > substring (1) > miss (0).
+    private func matchTier(_ term: String, in label: String) -> Int {
+        guard let r = label.localizedStandardRange(of: term) else { return 0 }
+        if r.lowerBound == label.startIndex { return 3 }
+        let before = label[label.index(before: r.lowerBound)]
+        return before.isLetter || before.isNumber ? 1 : 2
+    }
+
     private var filteredModelChoices: [(label: String, providerID: String, modelID: String)] {
-        let terms = modelSearch.split(whereSeparator: \.isWhitespace)
+        let terms = modelSearch.split(whereSeparator: \.isWhitespace).map(String.init)
         guard !terms.isEmpty else { return model.modelChoices }
-        return model.modelChoices.filter { choice in
-            terms.allSatisfy { choice.label.localizedCaseInsensitiveContains($0) }
+        let ranked = model.modelChoices.compactMap { choice -> (item: (label: String, providerID: String, modelID: String), rank: Int)? in
+            let worst = terms.map { matchTier($0, in: choice.label) }.min() ?? 0
+            return worst > 0 ? (choice, worst) : nil
         }
+        return ranked
+            .sorted { $0.rank == $1.rank ? $0.item.label < $1.item.label : $0.rank > $1.rank }
+            .map(\.item)
     }
 
     private var modelPickerDropdown: some View {
