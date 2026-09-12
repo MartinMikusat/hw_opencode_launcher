@@ -195,9 +195,6 @@ struct OpencodeClient: Sendable {
         try await get("/config/providers", as: ProvidersResponse.self)
     }
 
-    struct Agent: Decodable { let name: String; let hidden: Bool? }
-    func agents() async throws -> [Agent] { try await get("/agent", as: [Agent].self) }
-
     struct Config: Decodable { let model: String? }
     func config() async throws -> Config { try await get("/config", as: Config.self) }
 

@@ -25,8 +25,6 @@ final class ChatModel: ObservableObject {
     @Published var modelChoices: [(label: String, providerID: String, modelID: String)] = []
     @Published var selectedModelLabel: String?
     @Published var defaultModelName = ""
-    @Published var agents: [String] = []
-    @Published var selectedAgent: String?
     @Published var connecting = false
 
     var serverURL = ""
@@ -85,9 +83,6 @@ final class ChatModel: ObservableObject {
                 }
             }
             modelChoices = choices
-        }
-        if let list = try? await client.agents() {
-            agents = list.filter { $0.hidden != true }.map(\.name)
         }
     }
 
@@ -219,7 +214,7 @@ final class ChatModel: ObservableObject {
                 let model = selectedModelLabel
                     .flatMap { l in modelChoices.first(where: { $0.label == l }) }
                     .map { OpencodeClient.PromptBody.Model(providerID: $0.providerID, modelID: $0.modelID) }
-                try await client.promptAsync(sessionID: sid, text: text, model: model, agent: selectedAgent)
+                try await client.promptAsync(sessionID: sid, text: text, model: model)
             } catch {
                 busy = false
                 statusLine = error.localizedDescription

@@ -47,8 +47,8 @@ relocates itself per task (cd/read whatever rules it needs).
   message echo (`pendingLocalIDs`/`hiddenMessageIDs`). Permission requests →
   NSAlert (once/always/reject). Busy→idle while panel hidden →
   `onIdleWhileHidden` → UNUserNotificationCenter.
-- `Sources/OpenPad/ChatView.swift` — header (dir, model picker, agent
-  picker), transcript, input bar. Esc = abort while busy, hide when idle.
+- `Sources/OpenPad/ChatView.swift` — header (dir, model picker), transcript
+  (text + live tool rows), input bar. Esc = abort while busy, hide when idle.
 - `Sources/OpenPad/ServerManager.swift` — port probe via `GET /path` (doubles
   as health check; no `/health` in this API version), detached `Process`
   spawn, binary resolution (`~/.opencode/bin`, homebrew, login-shell PATH).

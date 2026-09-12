@@ -55,16 +55,6 @@ struct ChatView: View {
                         pickerLabel(model.selectedModelLabel ?? (model.defaultModelName.isEmpty ? "model" : model.defaultModelName))
                     }
                 }
-                if !model.agents.isEmpty {
-                    Menu {
-                        Button("default") { model.selectedAgent = nil }
-                        ForEach(model.agents, id: \.self) { a in
-                            Button(a) { model.selectedAgent = a }
-                        }
-                    } label: {
-                        pickerLabel(model.selectedAgent ?? "agent")
-                    }
-                }
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
@@ -139,7 +129,8 @@ struct ChatView: View {
                     .keyboardShortcut("o", modifiers: .command)
             }
             .padding(.horizontal, 14)
-            .padding(.vertical, 11)
+            .padding(.top, 1)
+            .padding(.bottom, 11)
             if !model.statusLine.isEmpty {
                 Text(model.statusLine)
                     .font(.system(size: 11))
