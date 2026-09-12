@@ -1,0 +1,49 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension/package.json",
+  "name": "raycast-opencode",
+  "title": "OpenCode",
+  "description": "Chat with opencode, the AI coding agent, directly in Raycast",
+  "icon": "icon.png",
+  "author": "martin",
+  "license": "MIT",
+  "commands": [
+    {
+      "name": "chat",
+      "title": "Chat",
+      "description": "Chat with an opencode agent in a project directory",
+      "mode": "view"
+    },
+    {
+      "name": "sessions",
+      "title": "Sessions",
+      "description": "Browse and resume opencode sessions",
+      "mode": "view"
+    }
+  ],
+  "preferences": [
+    {
+      "name": "defaultDirectory",
+      "type": "textfield",
+      "required": false,
+      "title": "Default Project Directory",
+      "description": "Working directory for new chats. Leave empty to pick per chat.",
+      "placeholder": "~/projects/my-app"
+    }
+  ],
+  "dependencies": {
+    "@opencode-ai/sdk": "^1.18.30",
+    "@raycast/api": "^2.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "typescript": "^5.9.0"
+  },
+  "scripts": {
+    "build": "ray build",
+    "dev": "ray develop",
+    "lint": "ray lint",
+    "fix-lint": "ray lint --fix",
+    "publish": "npx @raycast/api@latest publish"
+  }
+}
