@@ -16,7 +16,13 @@ private enum Ink {
 struct ChatView: View {
     @ObservedObject var model: ChatModel
     @State private var query = ""
+    @State private var modelSearch = ""
+    @State private var showModelPicker = false
+    @State private var hoveredModel: String?
+    /// 0 = the server-default row; 1... = filteredModelChoices[i-1].
+    @State private var modelHighlight = 0
     @FocusState private var inputFocused: Bool
+    @FocusState private var searchFocused: Bool
 
     var body: some View {
         chatBody
@@ -28,8 +34,10 @@ struct ChatView: View {
         )
         .preferredColorScheme(.dark)
         .onExitCommand {
-            // Esc stops the agent first; a second Esc (once idle) hides the panel.
-            if model.busy { model.abort() } else { model.onEscape?() }
+            // Esc closes the picker, then stops the agent, then hides the panel.
+            if showModelPicker { showModelPicker = false }
+            else if model.busy { model.abort() }
+            else { model.onEscape?() }
         }
     }
 
@@ -43,17 +51,11 @@ struct ChatView: View {
                     .foregroundStyle(Ink.secondary)
                 Spacer()
                 if !model.modelChoices.isEmpty {
-                    Menu {
-                        Button(model.defaultModelName.isEmpty ? "server default" : "default (\(model.defaultModelName))") {
-                            model.selectedModelLabel = nil
-                        }
-                        Divider()
-                        ForEach(model.modelChoices, id: \.label) { c in
-                            Button(c.label) { model.selectedModelLabel = c.label }
-                        }
-                    } label: {
+                    Button { showModelPicker.toggle() } label: {
                         pickerLabel(model.selectedModelLabel ?? (model.defaultModelName.isEmpty ? "model" : model.defaultModelName))
                     }
+                    .buttonStyle(.plain)
+                    .keyboardShortcut("m", modifiers: .command)
                 }
             }
             .padding(.horizontal, 14)
@@ -141,6 +143,122 @@ struct ChatView: View {
         }
         // Defer so the field editor is attached before grabbing focus.
         .onAppear { DispatchQueue.main.async { inputFocused = true } }
+        // When the picker closes, the search field's removal leaves first
+        // responder nil — return focus to the input so Esc keeps working.
+        .onChange(of: showModelPicker) {
+            if !showModelPicker { DispatchQueue.main.async { inputFocused = true } }
+        }
+        // In-panel dropdown — SwiftUI .popover can't present from a
+        // nonactivating NSPanel, so the picker is an overlay in the same window.
+        // The dismiss catcher sits *behind* the dropdown (overlays stack in
+        // application order).
+        .overlay {
+            if showModelPicker {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture { showModelPicker = false }
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            if showModelPicker {
+                modelPickerDropdown
+                    .padding(.top, 40)
+                    .padding(.trailing, 10)
+            }
+        }
+    }
+
+    private var filteredModelChoices: [(label: String, providerID: String, modelID: String)] {
+        guard !modelSearch.isEmpty else { return model.modelChoices }
+        return model.modelChoices.filter { $0.label.localizedCaseInsensitiveContains(modelSearch) }
+    }
+
+    private var modelPickerDropdown: some View {
+        VStack(spacing: 0) {
+            TextField("Search models", text: $modelSearch)
+                .textFieldStyle(.plain)
+                .font(.system(size: 12))
+                .foregroundStyle(Ink.text)
+                .focused($searchFocused)
+                .onChange(of: modelSearch) { modelHighlight = min(modelHighlight, filteredModelChoices.count) }
+                .onKeyPress(keys: [.upArrow, .downArrow, .return]) { press in
+                    switch press.key {
+                    case .upArrow: modelHighlight = max(0, modelHighlight - 1)
+                    case .downArrow: modelHighlight = min(filteredModelChoices.count, modelHighlight + 1)
+                    case .return: pickHighlightedModel()
+                    default: return .ignored
+                    }
+                    return .handled
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+            hairline
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        modelRow(
+                            label: model.defaultModelName.isEmpty ? "server default" : "default (\(model.defaultModelName))",
+                            selected: model.selectedModelLabel == nil,
+                            highlighted: modelHighlight == 0
+                        ) { model.selectedModelLabel = nil }
+                        .id(0)
+                        ForEach(Array(filteredModelChoices.enumerated()), id: \.element.label) { i, c in
+                            modelRow(
+                                label: c.label,
+                                selected: model.selectedModelLabel == c.label,
+                                highlighted: modelHighlight == i + 1
+                            ) { model.selectedModelLabel = c.label }
+                            .id(i + 1)
+                        }
+                    }
+                }
+                .onChange(of: modelHighlight) { proxy.scrollTo(modelHighlight, anchor: .center) }
+            }
+            .frame(maxHeight: 320)
+        }
+        .frame(width: 260)
+        .background(Ink.bg)
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(Ink.hairline, lineWidth: 0.5)
+        )
+        .preferredColorScheme(.dark)
+        .onAppear { DispatchQueue.main.async { searchFocused = true } }
+    }
+
+    private func pickHighlightedModel() {
+        if modelHighlight > 0, filteredModelChoices.indices.contains(modelHighlight - 1) {
+            model.selectedModelLabel = filteredModelChoices[modelHighlight - 1].label
+        } else {
+            model.selectedModelLabel = nil
+        }
+        showModelPicker = false
+    }
+
+    private func modelRow(label: String, selected: Bool, highlighted: Bool, action: @escaping () -> Void) -> some View {
+        Button {
+            action()
+            showModelPicker = false
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 9, weight: .bold))
+                    .opacity(selected ? 1 : 0)
+                    .frame(width: 12)
+                Text(label)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Ink.text)
+                    .lineLimit(1)
+                Spacer()
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(highlighted || hoveredModel == label ? Ink.fill : .clear)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hoveredModel = $0 ? label : nil }
     }
 
     private var hairline: some View {

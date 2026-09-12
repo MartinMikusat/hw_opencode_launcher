@@ -56,7 +56,9 @@ final class PanelController {
 
     func toggle() {
         guard let panel else { return }
-        if panel.isVisible {
+        // Hide only when it's the key window; if it's merely visible (left
+        // non-key behind a dismissed popover), the hotkey should re-focus it.
+        if panel.isKeyWindow {
             panel.orderOut(nil)
         } else {
             show()
