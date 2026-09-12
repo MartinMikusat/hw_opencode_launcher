@@ -169,8 +169,11 @@ struct ChatView: View {
     }
 
     private var filteredModelChoices: [(label: String, providerID: String, modelID: String)] {
-        guard !modelSearch.isEmpty else { return model.modelChoices }
-        return model.modelChoices.filter { $0.label.localizedCaseInsensitiveContains(modelSearch) }
+        let terms = modelSearch.split(whereSeparator: \.isWhitespace)
+        guard !terms.isEmpty else { return model.modelChoices }
+        return model.modelChoices.filter { choice in
+            terms.allSatisfy { choice.label.localizedCaseInsensitiveContains($0) }
+        }
     }
 
     private var modelPickerDropdown: some View {
