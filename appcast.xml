@@ -3,13 +3,13 @@
     <channel>
         <title>OpenPad</title>
         <item>
-            <title>0.1.0</title>
-            <pubDate>Sat, 12 Sep 2026 23:45:39 +0200</pubDate>
-            <sparkle:version>0.1.0</sparkle:version>
-            <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
+            <title>0.1.1</title>
+            <pubDate>Sat, 12 Sep 2026 23:47:49 +0200</pubDate>
+            <sparkle:version>0.1.1</sparkle:version>
+            <sparkle:shortVersionString>0.1.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <enclosure url="https://github.com/MartinMikusat/hw_opencode_launcher/releases/download/v0.1.0/OpenPad-0.1.0.zip" length="1447729" type="application/octet-stream" sparkle:edSignature="P4rnzd8u5mQgSKxhtkstmXOyX2vxVVLw414JcZ38QJp2gOyoyQaiou1R76tg3pF9JJwnnmv4XNxs1Yr7K5pcAQ=="/>
+            <enclosure url="https://github.com/MartinMikusat/hw_opencode_launcher/releases/download/v0.1.1/OpenPad-0.1.1.zip" length="1447768" type="application/octet-stream" sparkle:edSignature="BkBSq3U18endOARcH3e06C1eWGgjfFxJuQV745iU/nfv2W5nbTVp/AY5xtHP3afmG3k6HZrI0JFxbSQ586VtBQ=="/>
         </item>
     </channel>
 </rss>
