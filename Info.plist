@@ -2,26 +2,16 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CFBundleExecutable</key>
+	<string>OpenPad</string>
 	<key>CFBundleIdentifier</key>
 	<string>local.openpad</string>
 	<key>CFBundleName</key>
-	<string>OpenPad</string>
-	<key>CFBundleExecutable</key>
 	<string>OpenPad</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>0.1.0</string>
-	<key>CFBundleVersion</key>
-	<string>1</string>
-	<key>LSMinimumSystemVersion</key>
-	<string>14.0</string>
-	<key>LSUIElement</key>
-	<true/>
-	<key>SUFeedURL</key>
-	<string>https://raw.githubusercontent.com/MartinMikusat/hw_opencode_launcher/main/appcast.xml</string>
-	<key>SUPublicEDKey</key>
-	<string>6jvIUMs2HvX8q/bqrM2Z32ZKzxN8Ror8tCnp/3aYfnI=</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -31,5 +21,15 @@
 			</array>
 		</dict>
 	</array>
+	<key>CFBundleVersion</key>
+	<string>0.1.0</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://raw.githubusercontent.com/MartinMikusat/hw_opencode_launcher/main/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>6jvIUMs2HvX8q/bqrM2Z32ZKzxN8Ror8tCnp/3aYfnI=</string>
 </dict>
 </plist>
