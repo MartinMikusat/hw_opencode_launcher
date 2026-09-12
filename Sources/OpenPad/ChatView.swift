@@ -116,11 +116,10 @@ struct ChatView: View {
                 }
             }
             hairline
-            HStack(alignment: .bottom, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text("❯")
                     .font(Ink.mono(12))
                     .foregroundStyle(Ink.secondary)
-                    .padding(.bottom, 3)
                 TextField("Message…", text: $query, axis: .vertical)
                     .textFieldStyle(.plain)
                     .font(Ink.mono(12))
@@ -151,8 +150,7 @@ struct ChatView: View {
                     .keyboardShortcut("o", modifiers: .command)
             }
             .padding(.horizontal, 14)
-            .padding(.top, 1)
-            .padding(.bottom, 11)
+            .padding(.vertical, 7)
             if !model.statusLine.isEmpty {
                 Text(model.statusLine)
                     .font(Ink.mono(10))
@@ -314,7 +312,6 @@ struct ChatView: View {
                 .font(Ink.mono(12))
                 .foregroundStyle(Ink.secondary)
                 .padding(.horizontal, 4)
-                .padding(.bottom, 3)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
