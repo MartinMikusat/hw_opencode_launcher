@@ -1,4 +1,4 @@
-# OpenPad (was raycast-opencode)
+# hw_opencode_launcher (OpenPad)
 
 A native macOS launcher — Spotlight-style floating panel on a global hotkey —
 that acts as an agentic chat harness for [opencode](https://opencode.ai)
@@ -12,7 +12,12 @@ project work. Heavy sessions hand off to `opencode attach` in Ghostty.
 ## Commands
 
 - `swift build` — debug build
-- `scripts/build-app.sh` — release build → `build/OpenPad.app` (ad-hoc signed)
+- `scripts/build-app.sh` — release build → `build/OpenPad.app` (Developer ID
+  signed, embeds Sparkle.framework + rpath fix)
+- `scripts/release.sh <ver>` — bump plist → build → zip → EdDSA-sign →
+  appcast → GitHub Release → push. Sparkle updates fetch
+  `appcast.xml` via raw.githubusercontent on the public repo
+  `MartinMikusat/hw_opencode_launcher`; EdDSA private key is in the Keychain.
 - `open build/OpenPad.app` — run
 
 ## Architecture

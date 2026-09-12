@@ -12,9 +12,11 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Framewor
 cp .build/release/OpenPad "$APP/Contents/MacOS/"
 cp Info.plist "$APP/Contents/"
 
-# Sparkle ships as an XCFramework binary artifact — embed the macOS slice.
+# Sparkle ships as an XCFramework binary artifact — embed the macOS slice and
+# point the binary at Contents/Frameworks (SwiftPM leaves no rpath for it).
 SPARKLE=$(find .build/artifacts -name Sparkle.framework -path "*macos*" | head -1)
 cp -R "$SPARKLE" "$APP/Contents/Frameworks/"
+install_name_tool -add_rpath "@executable_path/../Frameworks" "$APP/Contents/MacOS/OpenPad"
 
 codesign --force --options runtime --timestamp --sign "$IDENTITY" "$APP/Contents/Frameworks/Sparkle.framework"
 codesign --force --options runtime --timestamp --sign "$IDENTITY" "$APP"
