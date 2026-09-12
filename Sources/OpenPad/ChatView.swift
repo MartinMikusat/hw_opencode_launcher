@@ -214,6 +214,9 @@ struct ChatView: View {
                 }
                 .onChange(of: modelHighlight) { proxy.scrollTo(modelHighlight, anchor: .center) }
             }
+            // LazyVStack inside an overlay doesn't reliably reload rows when
+            // the filtered collection changes — force a rebuild per query.
+            .id(modelSearch)
             .frame(maxHeight: 320)
         }
         .frame(width: 260)
