@@ -1,68 +1,86 @@
-# raycast-opencode
+# OpenPad (was raycast-opencode)
 
-A Raycast extension that acts as an agentic chat harness for [opencode](https://opencode.ai)
-(the CLI coding agent). Scope: small-to-medium tasks — quick edits, questions, fixes —
-not large project work. Heavy sessions are meant to be handed off to the terminal TUI.
+A native macOS launcher — Spotlight-style floating panel on a global hotkey —
+that acts as an agentic chat harness for [opencode](https://opencode.ai)
+(the CLI coding agent). Scope: small-to-medium tasks — quick edits, questions,
+personal flows (e.g. "download this YouTube video to iCloud") — not large
+project work. Heavy sessions hand off to `opencode attach` in Ghostty.
+
+**History:** started as a Raycast extension; pivoted to a standalone Swift app
+(no Raycast dependency). The backend story is identical either way.
 
 ## Commands
 
-- `npm run dev` — `ray develop`, installs the extension into Raycast in dev mode
-- `npm run build` — `ray build`
-- `npx tsc --noEmit` — typecheck
-- `node scripts/smoke.mjs [dir]` — end-to-end check without Raycast: spawns
-  `opencode serve`, creates a session, sends a prompt, verifies SSE events stream
+- `swift build` — debug build
+- `scripts/build-app.sh` — release build → `build/OpenPad.app` (ad-hoc signed)
+- `open build/OpenPad.app` — run
 
 ## Architecture
 
-Raycast extensions are React (Node.js runtime). opencode exposes a headless HTTP
-server (`opencode serve`) with an OpenAPI API and an SSE event stream; the official
-`@opencode-ai/sdk` wraps both.
+SwiftPM executable + bundle script (no .xcodeproj in git). LSUIElement agent:
+menu bar icon only, no Dock. Global hotkey via KeyboardShortcuts (default ⌥`,
+rebindable in menu → Keyboard Shortcut…).
 
 ```
-Raycast command ──ensureServer()──▶ opencode serve --port <4100+hash(dir)> (detached, per project dir)
-                     │
-                     ├─ session.create / session.promptAsync  (204, no wait)
-                     └─ event.subscribe() ─▶ SSE stream ─▶ message.part.updated → markdown
-                                                          session.idle → done
-                                                          permission.updated → confirmAlert → respond
+⌥` hotkey ─▶ PanelController (borderless floating NSPanel)
+                │
+                ▼
+     ChatView (SwiftUI)
+       dir-picker state → chat state (text-only transcript)
+                │
+                ▼
+     OpencodeClient — URLSession REST + SSE /event stream
+                │
+                ▼
+     ServerManager.ensureServer(dir) ─▶ `opencode serve` on port
+     4100+hash(dir) (detached — survives app quit, sessions persist)
+                │
+                ▼
+     Registry (~/Library/Application Support/OpenPad/servers.json)
+     dir → {port, lastUsedAt, lastTask} — feeds picker + sessions
 ```
 
-- **`src/lib/opencode.ts`** — `ensureServer(directory)`: probe the port derived
-  from the directory hash (4100–4899); if a server for a different project holds
-  it, probe the next port; if none, spawn detached and poll `client.path.get()`
-  until up. Servers persist after the command closes, so sessions keep running.
-- **`src/chat.tsx`** — `ChatView`: `List` with `filtering={false}`; the search
-  bar is the input, each message is a `List.Item` with `List.Item.Detail`
-  markdown (parts: text/reasoning/tool/file). Send = Enter; Stop = ⌘.; New Chat
-  = ⌘N; handoff to `opencode attach <url>` in Terminal.app = ⌘O.
-- **`src/sessions.tsx`** — lists `session.list()` for the configured directory;
-  Enter opens `ChatView` with that session id.
-- **Preferences** — `defaultDirectory` (required): the project opencode works in.
-  One server per directory; switching dirs = separate server + port.
+- `Sources/OpenPad/OpencodeClient.swift` — REST + SSE. `Part`/`ServerEvent`
+  are hand-decoded Codable unions keyed on `type`. Events nest under
+  `properties`.
+- `Sources/OpenPad/ChatModel.swift` — @MainActor state machine:
+  directory==nil → picker; send → lazy session create → `promptAsync` →
+  SSE updates. Permission requests → NSAlert (once/always/reject). Busy→idle
+  while panel hidden → `onIdleWhileHidden` → UNUserNotificationCenter.
+- `Sources/OpenPad/ChatView.swift` — one TextField does double duty: filter/
+  resolve directories in picker mode, prompt input in chat mode.
+- `Sources/OpenPad/DirectoryResolver.swift` — "say where to work": recents →
+  `~/projects` + iCloud Drive root scan → `mdfind` fallback.
+- `Sources/OpenPad/ServerManager.swift` — port probe via `GET /path` (doubles
+  as health check; no `/health` in this API version), detached `Process`
+  spawn, binary resolution (`~/.opencode/bin`, homebrew, login-shell PATH).
+- `Sources/OpenPad/OpenPadApp.swift` — AppDelegate: status item, hotkey,
+  settings window (shortcut recorder), notification delegate, URL scheme.
 
-## Feasibility findings (why this works)
+## Feasibility findings (verified against this machine, opencode 1.18.30)
 
 - opencode is client/server by design: the TUI is just a client of its own
-  server. `opencode serve` + `opencode attach <url>` make external clients
-  first-class.
-- Everything needed exists in the API: async prompts (`prompt_async`), streaming
-  (`/event` SSE: `message.part.delta/updated`, `session.status/idle`), abort,
-  permission replies (`POST /session/:id/permissions/:permissionID`), session
-  list/diff/todos.
-- Verified live on opencode 1.18.30 via `scripts/smoke.mjs`.
-- Prior art: `dpshade/raycast-opencode` (GH, ~8★) implements a similar flow —
-  worth mining for ideas (session search via FlexSearch, `@path` autocomplete,
-  multi-terminal handoff beyond Terminal.app, model/agent pickers).
+  server. The full agent loop — tools, MCPs, plugins, permissions — runs
+  server-side; this app is a dumb client exactly like the TUI.
+- Verified live: server spawn → session → `promptAsync` → SSE stream
+  (`message.part.delta/updated`, `session.idle`) → real `bash` tool call
+  completing. MCPs connect automatically (playwright/basic-memory/user-fff
+  verified `connected` via `client.mcp.status()`; apple-notes fails —
+  pre-existing npx issue unrelated to this app).
+- **Permissions:** global config `"permission": "allow"` → nothing prompts.
+  If tightened, `permission.updated` events → NSAlert →
+  `POST /session/:id/permissions/:pid` (`once`/`always`/`reject`).
+- Detached servers persist: fire a long task, quit the app, it finishes anyway.
+- Slash commands executable via `POST /session/:id/command` (not wired).
+- opencode SDK note: no `/global/health` in SDK 1.18.30 — `GET /path` is the
+  probe. Swift client hand-rolls the API (small surface, ~10 endpoints).
 
-## Known limitations / next steps
+## Roadmap / gaps
 
-- Single `defaultDirectory` preference — no per-chat directory switching yet
-  (`@~/path` in input or a picker would fix this; server-per-dir already works).
-- No model/agent picker; prompts use the server defaults (`promptAsync` accepts
-  `model`, `agent`, `tools` overrides; `config.providers()` lists options).
-- Permission prompt = `confirmAlert` (once/reject); `always` and richer
-  metadata rendering not wired.
-- Terminal handoff hardcodes Terminal.app via osascript; other terminals
-  (Ghostty/iTerm/Warp) need their own branches.
-- Parts rendered minimally; `step-finish` (cost/tokens), `patch`, `file` diffs
-  could be surfaced better.
+- Sessions view aggregating all registered servers (registry exists; UI not
+  written — notification deep links currently just show the panel).
+- `session.command` for slash commands; `@agent` inline syntax.
+- Ghostty handoff is wired (`⌘O`) but the `-e` invocation path needs a live
+  test on a real desktop session.
+- App icon, onboarding (permission grant for notifications), login-item
+  launch toggle.
