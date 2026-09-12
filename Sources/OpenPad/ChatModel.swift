@@ -12,6 +12,7 @@ final class ChatModel: ObservableObject {
         var toolCount = 0
         var errorCount = 0
         var stopped = false
+        var tools: [(id: String, name: String, detail: String?, status: String)] = []
         var text: String { order.compactMap { texts[$0] }.joined(separator: "\n") }
     }
 
@@ -131,9 +132,16 @@ final class ChatModel: ObservableObject {
                 case let .text(id, _, text):
                     if !msg.order.contains(id) { msg.order.append(id) }
                     msg.texts[id] = text
-                case let .tool(_, _, _, status):
-                    if status == "completed" { msg.toolCount += 1 }
-                    if status == "error" { msg.errorCount += 1 }
+                case let .tool(id, _, name, status, detail):
+                    if !msg.order.contains(id) { msg.order.append(id) }
+                    if let i = msg.tools.firstIndex(where: { $0.id == id }) {
+                        msg.tools[i].status = status
+                        if let detail { msg.tools[i].detail = detail }
+                    } else {
+                        msg.tools.append((id: id, name: name, detail: detail, status: status))
+                    }
+                    msg.toolCount = msg.tools.count { $0.status == "completed" }
+                    msg.errorCount = msg.tools.count { $0.status == "error" }
                 default:
                     break
                 }

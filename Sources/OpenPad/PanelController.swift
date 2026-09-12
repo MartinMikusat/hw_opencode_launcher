@@ -37,13 +37,19 @@ final class PanelController {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         self.panel = panel
 
-        for name in [NSWindow.didBecomeKeyNotification, NSWindow.didResignKeyNotification] {
-            NotificationCenter.default.addObserver(
-                forName: name, object: panel, queue: .main
-            ) { [weak model, weak panel] _ in
-                MainActor.assumeIsolated {
-                    model?.panelVisible = panel?.isKeyWindow ?? false
-                }
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.didBecomeKeyNotification, object: panel, queue: .main
+        ) { [weak model] _ in
+            MainActor.assumeIsolated { model?.panelVisible = true }
+        }
+        // Spotlight-style: clicking away hides the panel; the run continues
+        // on the detached server and re-summoning shows live progress.
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.didResignKeyNotification, object: panel, queue: .main
+        ) { [weak model, weak panel] _ in
+            MainActor.assumeIsolated {
+                model?.panelVisible = false
+                panel?.orderOut(nil)
             }
         }
     }

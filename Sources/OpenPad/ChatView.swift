@@ -194,12 +194,16 @@ struct ChatView: View {
                     .background(Ink.fillHover)
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             } else {
-                if !msg.text.isEmpty {
-                    Text(LocalizedStringKey(msg.text))
-                        .font(.system(size: 13))
-                        .lineSpacing(2)
-                        .foregroundStyle(Ink.text)
-                        .textSelection(.enabled)
+                ForEach(msg.order, id: \.self) { partID in
+                    if let text = msg.texts[partID], !text.isEmpty {
+                        Text(LocalizedStringKey(text))
+                            .font(.system(size: 13))
+                            .lineSpacing(2)
+                            .foregroundStyle(Ink.text)
+                            .textSelection(.enabled)
+                    } else if let tool = msg.tools.first(where: { $0.id == partID }) {
+                        toolRow(tool)
+                    }
                 }
                 if msg.stopped {
                     Text("stopped")
@@ -216,6 +220,23 @@ struct ChatView: View {
         }
         .frame(maxWidth: .infinity, alignment: msg.role == "user" ? .trailing : .leading)
         .id(msg.id)
+    }
+
+    private func toolRow(_ tool: (id: String, name: String, detail: String?, status: String)) -> some View {
+        HStack(spacing: 6) {
+            Text(tool.name)
+                .font(.system(size: 11, weight: .medium, design: .monospaced))
+            if let detail = tool.detail, !detail.isEmpty {
+                Text(detail.replacingOccurrences(of: "\n", with: " "))
+                    .font(.system(size: 11, design: .monospaced))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            if tool.status == "running" || tool.status == "pending" {
+                ProgressView().controlSize(.mini)
+            }
+        }
+        .foregroundStyle(tool.status == "error" ? Ink.error : Ink.tertiary)
     }
 
     private func send() {

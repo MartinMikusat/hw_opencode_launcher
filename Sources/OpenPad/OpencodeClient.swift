@@ -24,22 +24,36 @@ struct MessageWithParts: Decodable {
 enum Part: Decodable {
     case text(id: String, messageID: String, text: String)
     case reasoning(id: String, messageID: String, text: String)
-    case tool(id: String, messageID: String, tool: String, status: String)
+    case tool(id: String, messageID: String, tool: String, status: String, detail: String?)
     case other(id: String, messageID: String, type: String)
 
     var id: String {
         switch self {
-        case let .text(id, _, _), let .reasoning(id, _, _), let .tool(id, _, _, _), let .other(id, _, _): id
+        case let .text(id, _, _), let .reasoning(id, _, _), let .tool(id, _, _, _, _), let .other(id, _, _): id
         }
     }
     var messageID: String {
         switch self {
-        case let .text(_, m, _), let .reasoning(_, m, _), let .tool(_, m, _, _), let .other(_, m, _): m
+        case let .text(_, m, _), let .reasoning(_, m, _), let .tool(_, m, _, _, _), let .other(_, m, _): m
         }
     }
 
     private enum Keys: String, CodingKey { case id, messageID, type, text, tool, state }
-    private enum StateKeys: String, CodingKey { case status }
+
+    /// Tolerates any JSON value; only strings are kept for tool-call details.
+    private enum JSONScalar: Decodable {
+        case string(String), other
+        init(from decoder: Decoder) throws {
+            let c = try decoder.singleValueContainer()
+            if let s = try? c.decode(String.self) { self = .string(s) } else { self = .other }
+        }
+    }
+
+    private struct ToolState: Decodable {
+        let status: String
+        let title: String?
+        let input: [String: JSONScalar]?
+    }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -52,9 +66,15 @@ enum Part: Decodable {
             self = .reasoning(id: id, messageID: messageID, text: try c.decode(String.self, forKey: .text))
         case "tool":
             let tool = try c.decode(String.self, forKey: .tool)
-            let status = (try? c.nestedContainer(keyedBy: StateKeys.self, forKey: .state)
-                .decode(String.self, forKey: .status)) ?? "unknown"
-            self = .tool(id: id, messageID: messageID, tool: tool, status: status)
+            let state = try? c.decode(ToolState.self, forKey: .state)
+            var detail = state?.title
+            if detail == nil, let input = state?.input {
+                for key in ["command", "filePath", "path", "url", "pattern", "query", "description", "prompt"] {
+                    if case let .string(v)? = input[key], !v.isEmpty { detail = v; break }
+                }
+            }
+            self = .tool(id: id, messageID: messageID, tool: tool,
+                         status: state?.status ?? "unknown", detail: detail)
         case let t:
             self = .other(id: id, messageID: messageID, type: t)
         }
