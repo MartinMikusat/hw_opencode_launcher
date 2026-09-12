@@ -13,7 +13,7 @@ final class PanelController {
         let view = NSHostingView(rootView: ChatView(model: model))
         let panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 680, height: 440),
-            styleMask: [.nonactivatingPanel, .titled, .fullSizeContentView, .resizable],
+            styleMask: [.nonactivatingPanel, .borderless, .resizable],
             backing: .buffered,
             defer: false
         )
@@ -31,7 +31,6 @@ final class PanelController {
         panel.hasShadow = true
         panel.appearance = NSAppearance(named: .darkAqua)
         view.wantsLayer = true
-        view.layer?.cornerRadius = 14
         view.layer?.masksToBounds = true
         panel.hidesOnDeactivate = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
