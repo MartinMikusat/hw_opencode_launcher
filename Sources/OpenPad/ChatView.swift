@@ -3,14 +3,26 @@ import SwiftUI
 
 /// Strict monochrome palette — shades of grey only; red reserved for errors.
 private enum Ink {
-    static let bg = Color(white: 0.075)
+    static let bg = Color(white: 0.055)
     static let fill = Color.white.opacity(0.07)
     static let fillHover = Color.white.opacity(0.11)
-    static let hairline = Color.white.opacity(0.10)
+    static let hairline = Color.white.opacity(0.12)
     static let text = Color.white.opacity(0.92)
     static let secondary = Color.white.opacity(0.55)
     static let tertiary = Color.white.opacity(0.36)
     static let error = Color(red: 0.95, green: 0.35, blue: 0.35)
+    static func mono(_ size: CGFloat) -> Font { .custom("BerkeleyMonoVariable-Regular", size: size) }
+    static func monoItalic(_ size: CGFloat) -> Font { .custom("BerkeleyMonoVariable-Italic", size: size) }
+}
+
+/// Braille spinner — terminals don't have ProgressView.
+private struct Spinner: View {
+    static let frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 0.08)) { ctx in
+            Text(Self.frames[Int(ctx.date.timeIntervalSinceReferenceDate / 0.08) % Self.frames.count])
+        }
+    }
 }
 
 struct ChatView: View {
@@ -47,12 +59,15 @@ struct ChatView: View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
                 Text("~")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(Ink.mono(12))
                     .foregroundStyle(Ink.secondary)
                 Spacer()
                 if !model.modelChoices.isEmpty {
                     Button { showModelPicker.toggle() } label: {
-                        pickerLabel(model.selectedModelLabel ?? (model.defaultModelName.isEmpty ? "model" : model.defaultModelName))
+                        Text("[\(model.selectedModelLabel ?? (model.defaultModelName.isEmpty ? "model" : model.defaultModelName))]")
+                            .font(Ink.mono(11))
+                            .lineLimit(1)
+                            .foregroundStyle(Ink.secondary)
                     }
                     .buttonStyle(.plain)
                     .keyboardShortcut("m", modifiers: .command)
@@ -66,22 +81,23 @@ struct ChatView: View {
                     LazyVStack(alignment: .leading, spacing: 12) {
                         if model.connecting {
                             HStack(spacing: 8) {
-                                ProgressView().controlSize(.small).tint(Ink.secondary)
+                                Spinner().font(Ink.mono(11))
                                 Text("connecting…")
-                                    .font(.system(size: 12))
+                                    .font(Ink.mono(11))
                                     .foregroundStyle(Ink.secondary)
                             }
+                            .foregroundStyle(Ink.secondary)
                         }
                         ForEach(model.messages) { msg in
                             messageRow(msg)
                         }
                         if model.busy {
                             HStack(spacing: 8) {
-                                ProgressView().controlSize(.small).tint(Ink.secondary)
+                                Spinner().font(Ink.mono(11))
                                 Text("working…")
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(Ink.secondary)
+                                    .font(Ink.mono(11))
                             }
+                            .foregroundStyle(Ink.secondary)
                             .id("working")
                         }
                     }
@@ -101,9 +117,13 @@ struct ChatView: View {
             }
             hairline
             HStack(alignment: .bottom, spacing: 8) {
+                Text("❯")
+                    .font(Ink.mono(12))
+                    .foregroundStyle(Ink.secondary)
+                    .padding(.bottom, 3)
                 TextField("Message…", text: $query, axis: .vertical)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 13))
+                    .font(Ink.mono(12))
                     .foregroundStyle(Ink.text)
                     .lineLimit(1...6)
                     .focused($inputFocused)
@@ -122,12 +142,12 @@ struct ChatView: View {
                         return .handled
                     }
                 if model.busy {
-                    iconButton("stop.fill", help: "Stop (⌘.)") { model.abort() }
+                    textButton("^C", help: "Stop (⌘.)") { model.abort() }
                         .keyboardShortcut(".", modifiers: .command)
                 }
-                iconButton("plus", help: "New chat (⌘N)") { model.newChat(); query = "" }
+                textButton("+", help: "New chat (⌘N)") { model.newChat(); query = "" }
                     .keyboardShortcut("n", modifiers: .command)
-                iconButton("terminal", help: "Open in Ghostty (⌘O)") { model.openInGhostty() }
+                textButton(">_", help: "Open in Ghostty (⌘O)") { model.openInGhostty() }
                     .keyboardShortcut("o", modifiers: .command)
             }
             .padding(.horizontal, 14)
@@ -135,7 +155,7 @@ struct ChatView: View {
             .padding(.bottom, 11)
             if !model.statusLine.isEmpty {
                 Text(model.statusLine)
-                    .font(.system(size: 11))
+                    .font(Ink.mono(10))
                     .foregroundStyle(Ink.error)
                     .padding(.horizontal, 14)
                     .padding(.bottom, 8)
@@ -190,23 +210,28 @@ struct ChatView: View {
 
     private var modelPickerDropdown: some View {
         VStack(spacing: 0) {
-            TextField("Search models", text: $modelSearch)
-                .textFieldStyle(.plain)
-                .font(.system(size: 12))
-                .foregroundStyle(Ink.text)
-                .focused($searchFocused)
-                .onChange(of: modelSearch) { modelHighlight = min(modelHighlight, filteredModelChoices.count) }
-                .onKeyPress(keys: [.upArrow, .downArrow, .return]) { press in
-                    switch press.key {
-                    case .upArrow: modelHighlight = max(0, modelHighlight - 1)
-                    case .downArrow: modelHighlight = min(filteredModelChoices.count, modelHighlight + 1)
-                    case .return: pickHighlightedModel()
-                    default: return .ignored
+            HStack(spacing: 6) {
+                Text("❯")
+                    .font(Ink.mono(11))
+                    .foregroundStyle(Ink.tertiary)
+                TextField("search models", text: $modelSearch)
+                    .textFieldStyle(.plain)
+                    .font(Ink.mono(11))
+                    .foregroundStyle(Ink.text)
+                    .focused($searchFocused)
+                    .onChange(of: modelSearch) { modelHighlight = min(modelHighlight, filteredModelChoices.count) }
+                    .onKeyPress(keys: [.upArrow, .downArrow, .return]) { press in
+                        switch press.key {
+                        case .upArrow: modelHighlight = max(0, modelHighlight - 1)
+                        case .downArrow: modelHighlight = min(filteredModelChoices.count, modelHighlight + 1)
+                        case .return: pickHighlightedModel()
+                        default: return .ignored
+                        }
+                        return .handled
                     }
-                    return .handled
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
             hairline
             ScrollViewReader { proxy in
                 ScrollView {
@@ -260,12 +285,12 @@ struct ChatView: View {
             showModelPicker = false
         } label: {
             HStack(spacing: 6) {
-                Image(systemName: "checkmark")
-                    .font(.system(size: 9, weight: .bold))
+                Text("*")
+                    .font(Ink.mono(10))
                     .opacity(selected ? 1 : 0)
                     .frame(width: 12)
                 Text(label)
-                    .font(.system(size: 12))
+                    .font(Ink.mono(11))
                     .foregroundStyle(Ink.text)
                     .lineLimit(1)
                 Spacer()
@@ -283,27 +308,13 @@ struct ChatView: View {
         Rectangle().fill(Ink.hairline).frame(height: 0.5)
     }
 
-    private func pickerLabel(_ text: String) -> some View {
-        HStack(spacing: 4) {
-            Text(text)
-                .font(.system(size: 11, design: .monospaced))
-                .lineLimit(1)
-            Image(systemName: "chevron.up.chevron.down")
-                .font(.system(size: 8, weight: .semibold))
-        }
-        .foregroundStyle(Ink.secondary)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(Ink.fill)
-        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-    }
-
-    private func iconButton(_ systemImage: String, help: String, action: @escaping () -> Void) -> some View {
+    private func textButton(_ label: String, help: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.system(size: 12, weight: .medium))
+            Text(label)
+                .font(Ink.mono(12))
                 .foregroundStyle(Ink.secondary)
-                .frame(width: 24, height: 24)
+                .padding(.horizontal, 4)
+                .padding(.bottom, 3)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -311,21 +322,23 @@ struct ChatView: View {
     }
 
     private func messageRow(_ msg: ChatModel.Msg) -> some View {
-        VStack(alignment: msg.role == "user" ? .trailing : .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 4) {
             if msg.role == "user" {
-                Text(msg.text)
-                    .font(.system(size: 13))
-                    .foregroundStyle(Ink.text)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 7)
-                    .background(Ink.fillHover)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                HStack(alignment: .top, spacing: 8) {
+                    Text("❯")
+                        .font(Ink.mono(12))
+                        .foregroundStyle(Ink.secondary)
+                    Text(msg.text)
+                        .font(Ink.mono(12))
+                        .foregroundStyle(Ink.text)
+                        .textSelection(.enabled)
+                }
             } else {
                 ForEach(msg.order, id: \.self) { partID in
                     if let text = msg.texts[partID], !text.isEmpty {
                         Text(LocalizedStringKey(text))
-                            .font(.system(size: 13))
-                            .lineSpacing(2)
+                            .font(Ink.mono(12))
+                            .lineSpacing(3)
                             .foregroundStyle(Ink.text)
                             .textSelection(.enabled)
                     } else if let tool = msg.tools.first(where: { $0.id == partID }) {
@@ -334,33 +347,33 @@ struct ChatView: View {
                 }
                 if msg.stopped {
                     Text("stopped")
-                        .font(.system(size: 12))
-                        .italic()
+                        .font(Ink.monoItalic(11))
                         .foregroundStyle(Ink.tertiary)
                 } else if msg.text.isEmpty, !model.busy {
                     Text("done — \(msg.toolCount) tool call\(msg.toolCount == 1 ? "" : "s")\(msg.errorCount > 0 ? ", \(msg.errorCount) errors" : "")")
-                        .font(.system(size: 12))
-                        .italic()
+                        .font(Ink.monoItalic(11))
                         .foregroundStyle(Ink.tertiary)
                 }
             }
         }
-        .frame(maxWidth: .infinity, alignment: msg.role == "user" ? .trailing : .leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .id(msg.id)
     }
 
     private func toolRow(_ tool: (id: String, name: String, detail: String?, status: String)) -> some View {
         HStack(spacing: 6) {
+            Text("$")
+                .font(Ink.mono(11))
             Text(tool.name)
-                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .font(Ink.mono(11))
             if let detail = tool.detail, !detail.isEmpty {
                 Text(detail.replacingOccurrences(of: "\n", with: " "))
-                    .font(.system(size: 11, design: .monospaced))
+                    .font(Ink.mono(11))
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
             if tool.status == "running" || tool.status == "pending" {
-                ProgressView().controlSize(.mini)
+                Spinner().font(Ink.mono(11))
             }
         }
         .foregroundStyle(tool.status == "error" ? Ink.error : Ink.tertiary)
