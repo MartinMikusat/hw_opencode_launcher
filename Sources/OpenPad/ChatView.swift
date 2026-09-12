@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// Strict monochrome palette — shades of grey only; red reserved for errors.
@@ -114,7 +115,20 @@ struct ChatView: View {
                     .foregroundStyle(Ink.text)
                     .lineLimit(1...6)
                     .focused($inputFocused)
-                    .onSubmit { send() }
+                    // Return sends; Shift+Return inserts a newline. The field
+                    // editor owns the text while editing, so insert into it
+                    // directly — writing to `query` gets clobbered and letting
+                    // the event fall through selects-all and eats the text.
+                    .onKeyPress(.return, phases: .down) { press in
+                        if press.modifiers.contains(.shift) || NSEvent.modifierFlags.contains(.shift) {
+                            if let editor = NSApp.keyWindow?.firstResponder as? NSTextView {
+                                editor.insertText("\n", replacementRange: editor.selectedRange())
+                            }
+                            return .handled
+                        }
+                        send()
+                        return .handled
+                    }
                 if model.busy {
                     iconButton("stop.fill", help: "Stop (⌘.)") { model.abort() }
                         .keyboardShortcut(".", modifiers: .command)
@@ -134,8 +148,7 @@ struct ChatView: View {
                     .padding(.bottom, 8)
             }
         }
-        // Focus must be deferred: the picker TextField sharing this FocusState is
-        // removed in the same update, and its removal clears the value again.
+        // Defer so the field editor is attached before grabbing focus.
         .onAppear { DispatchQueue.main.async { inputFocused = true } }
     }
 
@@ -180,19 +193,25 @@ struct ChatView: View {
                     .padding(.vertical, 7)
                     .background(Ink.fillHover)
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-            } else if msg.text.isEmpty {
-                if !model.busy {
+            } else {
+                if !msg.text.isEmpty {
+                    Text(LocalizedStringKey(msg.text))
+                        .font(.system(size: 13))
+                        .lineSpacing(2)
+                        .foregroundStyle(Ink.text)
+                        .textSelection(.enabled)
+                }
+                if msg.stopped {
+                    Text("stopped")
+                        .font(.system(size: 12))
+                        .italic()
+                        .foregroundStyle(Ink.tertiary)
+                } else if msg.text.isEmpty, !model.busy {
                     Text("done — \(msg.toolCount) tool call\(msg.toolCount == 1 ? "" : "s")\(msg.errorCount > 0 ? ", \(msg.errorCount) errors" : "")")
                         .font(.system(size: 12))
                         .italic()
                         .foregroundStyle(Ink.tertiary)
                 }
-            } else {
-                Text(LocalizedStringKey(msg.text))
-                    .font(.system(size: 13))
-                    .lineSpacing(2)
-                    .foregroundStyle(Ink.text)
-                    .textSelection(.enabled)
             }
         }
         .frame(maxWidth: .infinity, alignment: msg.role == "user" ? .trailing : .leading)

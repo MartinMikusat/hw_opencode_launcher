@@ -11,6 +11,7 @@ final class ChatModel: ObservableObject {
         var texts: [String: String] = [:] // partID → text
         var toolCount = 0
         var errorCount = 0
+        var stopped = false
         var text: String { order.compactMap { texts[$0] }.joined(separator: "\n") }
     }
 
@@ -220,6 +221,14 @@ final class ChatModel: ObservableObject {
 
     func abort() {
         guard let sid = sessionID else { return }
+        // Immediate feedback; the SSE idle event lands a moment later.
+        if let i = messages.lastIndex(where: { $0.role != "user" }) {
+            messages[i].stopped = true
+        } else {
+            var m = Msg(id: "stopped_\(UUID().uuidString)", role: "assistant")
+            m.stopped = true
+            messages.append(m)
+        }
         Task { try? await client?.abort(sessionID: sid) }
     }
 
