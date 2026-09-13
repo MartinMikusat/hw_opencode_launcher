@@ -3,13 +3,25 @@
     <channel>
         <title>OpenPad</title>
         <item>
+            <title>0.1.2</title>
+            <pubDate>Sun, 13 Sep 2026 12:08:52 +0200</pubDate>
+            <sparkle:version>0.1.2</sparkle:version>
+            <sparkle:shortVersionString>0.1.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <enclosure url="https://github.com/MartinMikusat/hw_opencode_launcher/releases/download/v0.1.2/OpenPad-0.1.2.zip" length="1448467" type="application/octet-stream" sparkle:edSignature="rs55J0bApZaUWmGEJNjI/K3adNd/pED4PldHWGtA8rzOd7ntOZ2pf83vHuHJjG4VqhYPMK8XYQTIMc3ih1OOAQ=="/>
+            <sparkle:deltas>
+                <enclosure url="https://github.com/MartinMikusat/hw_opencode_launcher/releases/download/v0.1.2/OpenPad0.1.2-0.1.1.delta" sparkle:deltaFrom="0.1.1" length="39566" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977808" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="kHiEL+dsxzG7rmSrV/d/YJiFF4iia0xWclYmViDZ83SzS4zyrtGm+G8WP+Xonbe3TPlQMh9FFc6APDKL2AStAw=="/>
+            </sparkle:deltas>
+        </item>
+        <item>
             <title>0.1.1</title>
             <pubDate>Sat, 12 Sep 2026 23:47:49 +0200</pubDate>
             <sparkle:version>0.1.1</sparkle:version>
             <sparkle:shortVersionString>0.1.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <enclosure url="https://github.com/MartinMikusat/hw_opencode_launcher/releases/download/v0.1.1/OpenPad-0.1.1.zip" length="1447768" type="application/octet-stream" sparkle:edSignature="BkBSq3U18endOARcH3e06C1eWGgjfFxJuQV745iU/nfv2W5nbTVp/AY5xtHP3afmG3k6HZrI0JFxbSQ586VtBQ=="/>
+            <enclosure url="https://github.com/MartinMikusat/hw_opencode_launcher/releases/download/v0.1.2/OpenPad-0.1.1.zip" length="1447768" type="application/octet-stream" sparkle:edSignature="BkBSq3U18endOARcH3e06C1eWGgjfFxJuQV745iU/nfv2W5nbTVp/AY5xtHP3afmG3k6HZrI0JFxbSQ586VtBQ=="/>
         </item>
     </channel>
 </rss>
