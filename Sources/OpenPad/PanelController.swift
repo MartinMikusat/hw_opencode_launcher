@@ -1,6 +1,12 @@
 import AppKit
 import SwiftUI
 
+/// Borderless panels refuse key status (no typing, isKeyWindow always false,
+/// Esc dead). Re-allow it — the square corners only need .borderless.
+final class KeyablePanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+}
+
 /// Spotlight-style floating panel: borderless, centered top-third, closes on
 /// outside click / Esc via the view.
 @MainActor
@@ -11,7 +17,7 @@ final class PanelController {
     init(model: ChatModel) {
         self.model = model
         let view = NSHostingView(rootView: ChatView(model: model))
-        let panel = NSPanel(
+        let panel = KeyablePanel(
             contentRect: NSRect(x: 0, y: 0, width: 680, height: 440),
             styleMask: [.nonactivatingPanel, .borderless, .resizable],
             backing: .buffered,
