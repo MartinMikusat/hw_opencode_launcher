@@ -20,6 +20,15 @@ project work. Heavy sessions hand off to `opencode attach` in Ghostty.
   `MartinMikusat/hw_opencode_launcher`; EdDSA private key is in the Keychain.
 - `open build/OpenPad.app` — run
 
+## Development loop
+
+- Always run the dev build, never the installed one: `pkill -x OpenPad` first,
+  then `build/OpenPad.app/Contents/MacOS/OpenPad`. Only one instance may run
+  at a time — every copy grabs the global hotkey and status item.
+- Verify changes on the dev build, commit, then ASK before running
+  `scripts/release.sh` — do not release per fix; the appcast feed has a
+  several-minute propagation delay anyway.
+
 ## Architecture
 
 SwiftPM executable + bundle script (no .xcodeproj in git). LSUIElement agent:
